@@ -24,8 +24,50 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'inseguro-para-dev')
 # DEBUG via ENV (deve ser 'False' em produção)
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
+# Validate critical environment variables in production
+if not DEBUG:
+    required_env_vars = ['SECRET_KEY', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST']
+    missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+    if missing_vars:
+        raise Exception(f"Missing required environment variables: {', '.join(missing_vars)}")
+
 # Hosts permitidos: inclui localhost, e-commerce-toui.onrender.com e quaisquer via ENV
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+
+# Logging configuration for production debugging
+if not DEBUG:
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'verbose': {
+                'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+                'style': '{',
+            },
+        },
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'verbose',
+            },
+        },
+        'root': {
+            'handlers': ['console'],
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+        },
+        'loggers': {
+            'django': {
+                'handlers': ['console'],
+                'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+                'propagate': False,
+            },
+            'django.db': {
+                'handlers': ['console'],
+                'level': 'INFO',
+                'propagate': False,
+            },
+        },
+    }
 #
 # Aplicativos instalados
 #
@@ -98,7 +140,7 @@ TEMPLATES = [
 ]
 
 #
-# Banco de dados (SQLite)
+# Banco de dados (PostgreSQL)
 #
 DATABASES = {
     'default': {
@@ -107,7 +149,11 @@ DATABASES = {
         'USER': os.getenv('DB_USER'),
         'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT'),
+        'PORT': os.getenv('DB_PORT', '5432'),
+        'OPTIONS': {
+            'connect_timeout': 60,
+        },
+        'CONN_MAX_AGE': 600,
     }
 }
 
